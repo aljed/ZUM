@@ -17,8 +17,13 @@ data
 ```
 
 ```{r}
-task <- as_task_classif(data, target = "Class")
-task
+source("src/data_preparation.R")
+task <- build_class_task(data,
+                         scaling_method = "robust",
+                         sampling = "downsampling",
+                         sampling_rate = 0.001,
+                         smote_nn = 4)
+getTaskData(task)
 ```
 ## Wizualizacja danych {.tabset}
 

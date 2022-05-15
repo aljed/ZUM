@@ -1,6 +1,56 @@
 # 
 library("tidyverse")
 library("datawizard")
+library("mlr")
+
+build_class_task <- function(
+    data,
+    scaling_method,
+    sampling,
+    sampling_rate,
+    smote_nn = NULL,
+    selected_attributes = c()
+    ) {
+  
+  if(!is_empty(selected_attributes))
+    data <- data %>% select(selected_attributes)
+    
+  if("Time" %in% colnames(data)) {
+    data <- data %>% mutate(TimeSin = transform_time(Time, sin), 
+                            TimeCos = transform_time(Time, cos),
+                            .keep = "unused")
+  }
+  
+  if(scaling_method == "minmax")
+    data <- data %>% mutate(across(starts_with("V"), minmax_normalize))
+  else if(scaling_method == "zscore")
+    data <- standardise(data, select = starts_with("V"))
+  else if(scaling_method == "robust")
+    data <- standardise(data, select = starts_with("V"), robust = TRUE)
+  else
+    print("Scaling method " + scaling_method + " unsupported. Data will remain unscaled.")
+  
+  task <- makeClassifTask(data = data, target = "Class")
+  
+  if(is.null(sampling_rate))
+    stop("sampling_rate parameter must be filled")
+    
+  if(sampling == "oversampling")
+    task <- oversample(task, rate = sampling_rate)
+  else if(sampling == "downsampling")
+    task <- undersample(task, rate = sampling_rate)
+  else if(sampling == "SMOTE"){
+    if(is.null(smote_nn))
+      stop("smote_nn parameter must be filled if SMOTE sampling is choosen")
+    task <- smote(task, rate = sampling_rate, nn = smote_nn)
+  }
+  else
+    stop("Sampling method " + sampling + " unsupported.")
+  
+  task
+  
+}
+
 
 transform_time <- function(time_in_seconds, func_to_apply) {
   seconds_in_day <- 24 * 60 * 60
@@ -8,45 +58,7 @@ transform_time <- function(time_in_seconds, func_to_apply) {
   func_to_apply(day_time / seconds_in_day * 2 * pi)
 }
 
-minmax_normalize <- function(x, xmax, xmin) {
-  (x - xmin) / (xmax - xmin)
-}
 
-build_dataset <- function(
-    data,
-    scaling_method,
-    sampling,
-    undersampling_count,
-    oversampling_fraud_coefficient,
-    smote_neighbors_count,
-    selected_attributes
-    ) {
-  
-  data <- data %>% select(selected_attributes)
-    
-  if("Time" %in% colnames(data)) {
-    data <- data %>% transmute(Time, 
-                               TimeSin = transform_time(Time), 
-                               TimeCos = transform_time(Time))
-  }
-  
-  if(scaling_method == "minmax")
-    data %>% transmute(across(where(starts_with("V"))), minmax_normalize)
-  else if(scaling_method == "minmax")
-  
-  
-  scale_func <- switch (scaling_method,
-    "minmax" = data %>% transmute(across(where(starts_with("V"))), scale_func),
-    "zscore" = standardize,
-    "robust" = standardize_robust
-  )
-  
-  data <- data %>% transmute(across(where(starts_with("V"))), scale_func)
-  
-  standardise(d, select = c("Sepal.Length", "Sepal.Width"), append = TRUE)
-  
-  
-  
-    
-  
+minmax_normalize <- function(x) {
+  (x - min(x)) / (max(x) - min(x))
 }
