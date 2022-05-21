@@ -9,6 +9,12 @@ output: html_notebook
 library("mlr3verse")
 ```
 
+## Kod pomocniczy
+
+```{r}
+source("src/data_preparation.R")
+```
+
 ## Wczytanie danych
 
 ```{r}
@@ -17,13 +23,14 @@ data
 ```
 
 ```{r}
-source("src/data_preparation.R")
 task <- build_class_task(data,
                          scaling_method = "robust",
-                         sampling = "downsampling",
-                         sampling_rate = 0.001,
-                         smote_nn = 4)
-getTaskData(task)
+                         sampling = "oversampling",
+                         sampling_rate = 0.10,
+                         smote_nn = 4,
+                         feature_selection = "variable_importance",
+                         feature_selection_score = "5")
+task
 ```
 ## Wizualizacja danych {.tabset}
 
@@ -36,4 +43,6 @@ for (feature in task$feature_names) {
   cat("\n\n")
 }
 ```
+
+
 
