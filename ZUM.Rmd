@@ -1,35 +1,63 @@
 ---
 title: "ZUM"
-output: html_notebook
+output:
+  html_document:
+    df_print: paged
 ---
 
 ## Pakiety
 
-```{r}
+```{r message = FALSE}
+library("tidyverse")
 library("mlr3verse")
+library("future")
+library("progressr")
+library("progress")
 ```
 
 ## Kod pomocniczy
 
-```{r}
+```{r message = FALSE}
 source("src/data_preparation.R")
 ```
+
+## Konfiguracja
+
+```{r}
+plan(list("multisession", "sequential"))
+handlers("progress")
+```
+
 
 ## Wczytanie danych
 
 ```{r}
-data <- read.csv("data/creditcard.csv", colClasses = c("Class" = "factor"))
+data <- read_csv("data/creditcard.csv", col_types = c("Class" = "factor"))
 data
 ```
 
+## Koszt
+
 ```{r}
-task <- build_class_task(data,
-                         scaling_method = "robust",
-                         sampling = "oversampling",
-                         sampling_rate = 0.10,
-                         smote_nn = 4,
-                         feature_selection = "variable_importance",
-                         feature_selection_score = "5")
+frequencies <- data %>%
+  count(Class) %>%
+  column_to_rownames("Class")
+costs <- matrix(c(0, 1 / frequencies["1", "n"], 1 / frequencies["0", "n"], 0), nrow = 2)
+dimnames(costs) <- list(predicted = c(1, 0), real = c(1, 0))
+costs
+```
+
+## Miara ewaluacyjna
+
+```{r}
+measure <- msr("classif.costs", costs = costs)
+measure
+```
+
+## Zadanie
+
+```{r}
+task <- as_task_classif(data, target = "Class")
 task
 ```
 ## Wizualizacja danych {.tabset}
@@ -44,5 +72,50 @@ for (feature in task$feature_names) {
 }
 ```
 
+## Modele
 
+### Regresja logistyczna
 
+```{r}
+logreg <- lrn("classif.log_reg")
+```
+
+### Drzewo decyzyjne
+
+```{r}
+rpart <- AutoTuner$new(
+  learner = lrn("classif.rpart"),
+  resampling = rsmp("cv", folds = 3),
+  measure = measure,
+  search_space = ps(
+    cp = p_dbl(0, 1),
+    maxdepth = p_int(1, 30),
+    minbucket = p_int(1, 100)
+  ),
+  terminator = trm("stagnation", iters = 5),
+  tuner = tnr("random_search")
+)
+```
+
+## Benchmark
+
+```{r}
+learners <- list(logreg, rpart)
+```
+
+```{r}
+design <- benchmark_grid(
+  learners = learners,
+  tasks = task,
+  rsmp("cv", folds = 5)
+)
+design
+```
+
+```{r attr.output='style="max-height: 500px;"'}
+bmr <- with_progress(benchmark(design))
+```
+
+```{r}
+autoplot(bmr, measure = measure)
+```
