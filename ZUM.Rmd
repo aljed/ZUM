@@ -36,6 +36,12 @@ data <- read_csv("data/creditcard.csv", col_types = c("Class" = "factor"))
 data
 ```
 
+```{r}
+# tymczasowo wybierzmy mniej danych żeby szybciej się liczyło
+data <- data %>% group_by(Class) %>% slice_sample(n = 100, replace = TRUE) %>% ungroup()
+```
+
+
 ## Koszt
 
 ```{r}
@@ -74,17 +80,58 @@ for (feature in task$feature_names) {
 
 ## Modele
 
+### Baseline
+
+```{r}
+baseline <- lrn("classif.featureless", predict_type = "prob", predict_sets = c("train", "test"))
+```
+
+
+### K najbliższych sąsiadów
+
+```{r}
+knn <- AutoTuner$new(
+  learner = lrn("classif.kknn", predict_type = "prob", predict_sets = c("train", "test")),
+  resampling = rsmp("cv", folds = 3),
+  measure = measure,
+  search_space = ps(
+    k = p_int(1, 30),
+    kernel = p_fct(c("rectangular", "epanechnikov", "inv", "gaussian"))
+  ),
+  terminator = trm("stagnation"),
+  tuner = tnr("random_search")
+)
+```
+
+### Maszyna wektorów nośnych
+
+```{r}
+svm <- AutoTuner$new(
+  learner = lrn("classif.ksvm", type = "C-svc", predict_type = "prob", predict_sets = c("train", "test")),
+  resampling = rsmp("cv", folds = 3),
+  measure = measure,
+  search_space = ps(
+    kernel = p_fct(c("rbfdot", "polydot", "vanilladot")),
+    sigma = p_dbl(0.01, 100, depends = kernel %in% c("rbfdot")),
+    scale = p_dbl(0.01, 100, depends = kernel %in% c("polydot")),
+    C = p_dbl(1, 100)
+  ),
+  terminator = trm("stagnation"),
+  tuner = tnr("random_search")
+)
+```
+
 ### Regresja logistyczna
 
 ```{r}
-logreg <- lrn("classif.log_reg")
+logreg <- lrn("classif.log_reg", predict_type = "prob", predict_sets = c("train", "test"))
 ```
 
 ### Drzewo decyzyjne
 
 ```{r}
 rpart <- AutoTuner$new(
-  learner = lrn("classif.rpart"),
+  learner = lrn("classif.rpart", predict_type = "prob", predict_sets = c("train", "test")),
   resampling = rsmp("cv", folds = 3),
   measure = measure,
   search_space = ps(
@@ -92,22 +139,41 @@ rpart <- AutoTuner$new(
     maxdepth = p_int(1, 30),
     minbucket = p_int(1, 100)
   ),
-  terminator = trm("stagnation", iters = 5),
+  terminator = trm("stagnation"),
   tuner = tnr("random_search")
 )
 ```
 
+### Las losowy
+
+```{r}
+random_forest <- AutoTuner$new(
+  learner = lrn("classif.ranger", predict_type = "prob", predict_sets = c("train", "test")),
+  resampling = rsmp("cv", folds = 3),
+  measure = measure,
+  search_space = ps(
+    num.trees = p_int(10, 1000),
+    max.depth = p_int(1, 30),
+    mtry = p_int(1, 30),
+    min.node.size = p_int(1, 10)
+  ),
+  terminator = trm("stagnation"),
+  tuner = tnr("random_search")
+)
+```
+
+
 ## Benchmark
 
 ```{r}
-learners <- list(logreg, rpart)
+learners <- list(baseline, knn, svm, logreg, rpart, random_forest)
 ```
 
 ```{r}
 design <- benchmark_grid(
-  learners = learners,
   tasks = task,
-  rsmp("cv", folds = 5)
+  learners = learners,
+  resamplings = rsmp("cv", folds = 5)
 )
 design
 ```
@@ -118,4 +184,12 @@ bmr <- with_progress(benchmark(design))
 
 ```{r}
 autoplot(bmr, measure = measure)
+```
+
+```{r}
+autoplot(bmr, measure = measure, type = "roc")
+```
+
+```{r}
+autoplot(bmr, measure = measure, type = "prc")
 ```
