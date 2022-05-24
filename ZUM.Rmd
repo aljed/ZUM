@@ -53,10 +53,17 @@ dimnames(costs) <- list(predicted = c(1, 0), real = c(1, 0))
 costs
 ```
 
-## Miara ewaluacyjna
+## Miary ewaluacyjne
 
 ```{r}
 measure <- msr("classif.costs", costs = costs)
+
+f1 <- msr("classif.fbeta")
+roc_auc <- msr("classif.auc")
+prauc <- msr("classif.prauc")
+recall <- msr("classif.recall")
+precision <- msr("classif.precision")
+
 measure
 ```
 
@@ -91,12 +98,13 @@ baseline <- lrn("classif.featureless", predict_type = "prob", predict_sets = c("
 
 ```{r}
 knn <- AutoTuner$new(
-  learner = lrn("classif.kknn", predict_type = "prob", predict_sets = c("train", "test")),
+  learner = lrn("classif.kknn", predict_type = "prob", predict_sets = c("train", "test")) %>>% po("threshold"),
   resampling = rsmp("cv", folds = 3),
   measure = measure,
   search_space = ps(
-    k = p_int(1, 30),
-    kernel = p_fct(c("rectangular", "epanechnikov", "inv", "gaussian"))
+    classif.kknn.k	 = p_int(1, 30),
+    classif.kknn.kernel	 = p_fct(c("rectangular", "epanechnikov", "inv", "gaussian")),
+    threshold.thresholds = p_dbl(lower = 0, upper = 1)
   ),
   terminator = trm("stagnation"),
   tuner = tnr("random_search")
@@ -107,14 +115,16 @@ knn <- AutoTuner$new(
 
 ```{r}
 svm <- AutoTuner$new(
-  learner = lrn("classif.ksvm", type = "C-svc", predict_type = "prob", predict_sets = c("train", "test")),
+  learner = lrn("classif.ksvm", type = "C-svc", predict_type = "prob", predict_sets = c("train", "test")) 
+             %>>% po("threshold"),
   resampling = rsmp("cv", folds = 3),
   measure = measure,
   search_space = ps(
-    kernel = p_fct(c("rbfdot", "polydot", "vanilladot")),
-    sigma = p_dbl(0.01, 100, depends = kernel %in% c("rbfdot")),
-    scale = p_dbl(0.01, 100, depends = kernel %in% c("polydot")),
-    C = p_dbl(1, 100)
+    classif.ksvm.kernel = p_fct(c("rbfdot", "polydot", "vanilladot")),
+    classif.ksvm.sigma = p_dbl(0.01, 100, depends = classif.ksvm.kernel %in% c("rbfdot")),
+    classif.ksvm.scale = p_dbl(0.01, 100, depends = classif.ksvm.kernel %in% c("polydot")),
+    classif.ksvm.C = p_dbl(1, 100),
+    threshold.thresholds = p_dbl(lower = 0, upper = 1)
   ),
   terminator = trm("stagnation"),
   tuner = tnr("random_search")
@@ -124,20 +134,31 @@ svm <- AutoTuner$new(
 ### Regresja logistyczna
 
 ```{r}
-logreg <- lrn("classif.log_reg", predict_type = "prob", predict_sets = c("train", "test"))
+logreg <- 
+logreg <- AutoTuner$new(
+  learner = lrn("classif.log_reg", predict_type = "prob", predict_sets = c("train", "test")) %>>% po("threshold"),
+  resampling = rsmp("cv", folds = 3),
+  measure = measure,
+  search_space = ps(
+    threshold.thresholds = p_dbl(lower = 0, upper = 1)
+  ),
+  terminator = trm("stagnation"),
+  tuner = tnr("random_search")
+)
 ```
 
 ### Drzewo decyzyjne
 
 ```{r}
 rpart <- AutoTuner$new(
-  learner = lrn("classif.rpart", predict_type = "prob", predict_sets = c("train", "test")),
+  learner = lrn("classif.rpart", predict_type = "prob", predict_sets = c("train", "test")) %>>% po("threshold"),
   resampling = rsmp("cv", folds = 3),
   measure = measure,
   search_space = ps(
-    cp = p_dbl(0, 1),
-    maxdepth = p_int(1, 30),
-    minbucket = p_int(1, 100)
+    classif.rpart.cp = p_dbl(0, 1),
+    classif.rpart.maxdepth = p_int(1, 30),
+    classif.rpart.minbucket = p_int(1, 100),
+    threshold.thresholds = p_dbl(lower = 0, upper = 1)
   ),
   terminator = trm("stagnation"),
   tuner = tnr("random_search")
@@ -148,20 +169,20 @@ rpart <- AutoTuner$new(
 
 ```{r}
 random_forest <- AutoTuner$new(
-  learner = lrn("classif.ranger", predict_type = "prob", predict_sets = c("train", "test")),
+  learner = lrn("classif.ranger", predict_type = "prob", predict_sets = c("train", "test")) %>>% po("threshold"),
   resampling = rsmp("cv", folds = 3),
   measure = measure,
   search_space = ps(
-    num.trees = p_int(10, 1000),
-    max.depth = p_int(1, 30),
-    mtry = p_int(1, 30),
-    min.node.size = p_int(1, 10)
+    classif.ranger.num.trees = p_int(10, 1000),
+    classif.ranger.max.depth = p_int(1, 30),
+    classif.ranger.mtry = p_int(1, 30),
+    classif.ranger.min.node.size = p_int(1, 10),
+    threshold.thresholds = p_dbl(lower = 0, upper = 1)
   ),
   terminator = trm("stagnation"),
   tuner = tnr("random_search")
 )
 ```
-
 
 ## Benchmark
 
