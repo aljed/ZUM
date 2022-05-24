@@ -211,6 +211,31 @@ autoplot(bmr, measure = measure)
 autoplot(bmr, measure = measure, type = "roc")
 ```
 
+
+
 ```{r}
 autoplot(bmr, measure = measure, type = "prc")
+```
+```{r}
+autoplot(bmr, measure = f1)
+```
+
+
+```{r}
+autoplot(bmr, measure = precision)
+```
+
+
+```{r}
+autoplot(bmr, measure = roc_auc)
+```
+
+
+```{r}
+autoplot(bmr, measure = prauc)
+```
+
+
+```{r}
+autoplot(bmr, measure = recall)
 ```
