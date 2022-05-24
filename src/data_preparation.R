@@ -5,18 +5,7 @@ library("mlr3verse")
 library("ranger")
 
 
-build_class_task <- function(data,
-                             scaling_method,
-                             sampling,
-                             sampling_rate,
-                             smote_nn = NULL,
-                             selected_attributes = c(),
-                             feature_selection = NULL,
-                             feature_selection_score = NULL) {
-  if (!is_empty(selected_attributes)) {
-    data <- data %>% select(selected_attributes)
-  }
-
+build_class_task <- function(data, scaling_method) {
   if ("Time" %in% colnames(data)) {
     data <- data %>% mutate(
       TimeSin = transform_time(Time, sin),
@@ -34,9 +23,22 @@ build_class_task <- function(data,
   } else {
     print("Scaling method " + scaling_method + " unsupported. Data will remain unscaled.")
   }
-
+  
   task <- as_task_classif(data, target = "Class")
+  task
+}
 
+prepare_class_task <- function(task,
+                               sampling,
+                               sampling_rate,
+                               smote_nn = NULL,
+                               selected_attributes = c(),
+                               feature_selection = NULL,
+                               feature_selection_score = NULL) {
+  if (!is_empty(selected_attributes)) {
+    task$select(selected_attributes)
+  }
+  
   if (!is.null(feature_selection_score)) {
     if (feature_selection == "correlation") {
       filter <- flt("find_correlation")
