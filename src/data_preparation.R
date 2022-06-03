@@ -1,11 +1,10 @@
-#
 library("tidyverse")
 library("datawizard")
 library("mlr3verse")
 library("ranger")
 
 
-build_class_task <- function(data, scaling_method) {
+build_class_task <- function(data, scaling_method, ...) {
   if ("Time" %in% colnames(data)) {
     data <- data %>% mutate(
       TimeSin = transform_time(Time, sin),
@@ -23,9 +22,8 @@ build_class_task <- function(data, scaling_method) {
   } else {
     print("Scaling method " + scaling_method + " unsupported. Data will remain unscaled.")
   }
-  
-  task <- as_task_classif(data, target = "Class")
-  task
+
+  as_task_classif(data, target = "Class", ...)
 }
 
 prepare_class_task <- function(task,
@@ -38,7 +36,7 @@ prepare_class_task <- function(task,
   if (!is_empty(selected_attributes)) {
     task$select(selected_attributes)
   }
-  
+
   if (!is.null(feature_selection_score)) {
     if (feature_selection == "correlation") {
       filter <- flt("find_correlation")
@@ -79,8 +77,7 @@ prepare_class_task <- function(task,
     stop("Sampling method " + sampling + " unsupported.")
   }
 
-  task <- po$train(list(task))[[1]]
-  task
+  po$train(list(task))[[1]]
 }
 
 
@@ -93,4 +90,13 @@ transform_time <- function(time_in_seconds, func_to_apply) {
 
 minmax_normalize <- function(x) {
   (x - min(x)) / (max(x) - min(x))
+}
+
+cost_matrix <- function(data) {
+  frequencies <- data %>%
+    count(Class) %>%
+    column_to_rownames("Class")
+  costs <- matrix(c(0, 1 / frequencies["fraud", "n"], 1 / frequencies["legit", "n"], 0), nrow = 2)
+  dimnames(costs) <- list(predicted = c("fraud", "legit"), real = c("fraud", "legit"))
+  costs
 }

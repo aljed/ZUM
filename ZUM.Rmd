@@ -7,18 +7,20 @@ output:
 
 ## Pakiety
 
-```{r message = FALSE}
+```{r, message = FALSE}
 library("tidyverse")
 library("mlr3verse")
 library("future")
 library("progressr")
 library("progress")
+library("data.table")
 ```
 
 ## Kod pomocniczy
 
-```{r message = FALSE}
+```{r, message = FALSE}
 source("src/data_preparation.R")
+source("src/helpers.R")
 ```
 
 ## Konfiguracja
@@ -33,56 +35,82 @@ handlers("progress")
 
 ```{r}
 data <- read_csv("data/creditcard.csv", col_types = c("Class" = "factor"))
+data$Class <- factor(data$Class, labels = c("legit", "fraud"))
 data
 ```
 
 ```{r}
 # tymczasowo wybierzmy mniej danych żeby szybciej się liczyło
-data <- data %>% group_by(Class) %>% slice_sample(n = 100, replace = TRUE) %>% ungroup()
+data <- data %>%
+  group_by(Class) %>%
+  slice_sample(n = 100, replace = TRUE) %>%
+  ungroup()
 ```
 
 
 ## Koszt
 
 ```{r}
-frequencies <- data %>%
-  count(Class) %>%
-  column_to_rownames("Class")
-costs <- matrix(c(0, 1 / frequencies["1", "n"], 1 / frequencies["0", "n"], 0), nrow = 2)
-dimnames(costs) <- list(predicted = c(1, 0), real = c(1, 0))
+costs <- cost_matrix(data)
 costs
 ```
 
-## Miary ewaluacyjne
+## Przygotowanie danych
 
 ```{r}
-measure <- msr("classif.costs", costs = costs)
-
-f1 <- msr("classif.fbeta")
-roc_auc <- msr("classif.auc")
-prauc <- msr("classif.prauc")
-recall <- msr("classif.recall")
-precision <- msr("classif.precision")
-
-measure
+data_minmax <- build_class_task(data, "minmax", id = "minmax")
+data_minmax
 ```
-
-## Zadanie
+```{r}
+data_zscore <- build_class_task(data, "zscore", id = "zscore")
+data_zscore
+```
 
 ```{r}
-task <- as_task_classif(data, target = "Class")
-task
+data_robust <- build_class_task(data, "robust", id = "robust")
+data_robust
 ```
-## Wizualizacja danych {.tabset}
+
+## Wizualizacja danych
+
+### MinMax {.tabset}
 
 ```{r, results='asis', echo = FALSE}
-for (feature in task$feature_names) {
-  cat("###", feature, "\n")
-  suppressMessages(print(autoplot(task$clone()$select(c(feature)), type = "pairs")))
-  plot.new()
-  dev.off()
-  cat("\n\n")
-}
+plot_features_in_tabs(data_minmax)
+```
+
+### Zscore {.tabset}
+
+```{r, results='asis', echo = FALSE}
+plot_features_in_tabs(data_zscore)
+```
+
+### Robust {.tabset}
+
+```{r, results='asis', echo = FALSE}
+plot_features_in_tabs(data_robust)
+```
+
+
+## Miara ewaluacyjna
+
+```{r}
+MeasureClassifCostsPatched <- R6::R6Class("MeasureClassifCostsPatched",
+  inherit = MeasureClassifCosts,
+  public = list(
+    initialize = function(...) {
+      super$initialize(...)
+      self$properties <- character()
+    }
+  )
+)
+mlr_measures$add("classif.costs.patched", MeasureClassifCostsPatched)
+```
+
+
+```{r}
+measure <- msr("classif.costs.patched", costs = costs)
+measure
 ```
 
 ## Modele
@@ -90,101 +118,78 @@ for (feature in task$feature_names) {
 ### Baseline
 
 ```{r}
-baseline <- lrn("classif.featureless", predict_type = "prob", predict_sets = c("train", "test"))
+baseline <- learner("classif.featureless", method = "sample", id = "featureless")
 ```
 
 
 ### K najbliższych sąsiadów
 
 ```{r}
-knn <- AutoTuner$new(
-  learner = lrn("classif.kknn", predict_type = "prob", predict_sets = c("train", "test")) %>>% po("threshold"),
-  resampling = rsmp("cv", folds = 3),
+knn <- tunehyperparams(
+  learner = tunethreshold(learner("classif.kknn"), id = "knn"),
   measure = measure,
   search_space = ps(
-    classif.kknn.k	 = p_int(1, 30),
-    classif.kknn.kernel	 = p_fct(c("rectangular", "epanechnikov", "inv", "gaussian")),
-    threshold.thresholds = p_dbl(lower = 0, upper = 1)
-  ),
-  terminator = trm("stagnation"),
-  tuner = tnr("random_search")
+    classif.kknn.k = p_int(1, 30),
+    classif.kknn.kernel = p_fct(c("rectangular", "epanechnikov", "inv", "gaussian"))
+  )
 )
 ```
 
 ### Maszyna wektorów nośnych
 
 ```{r}
-svm <- AutoTuner$new(
-  learner = lrn("classif.ksvm", type = "C-svc", predict_type = "prob", predict_sets = c("train", "test")) 
-             %>>% po("threshold"),
-  resampling = rsmp("cv", folds = 3),
+svm <- tunehyperparams(
+  learner = tunethreshold(learner("classif.ksvm", type = "C-svc"), id = "svm"),
   measure = measure,
   search_space = ps(
     classif.ksvm.kernel = p_fct(c("rbfdot", "polydot", "vanilladot")),
     classif.ksvm.sigma = p_dbl(0.01, 100, depends = classif.ksvm.kernel %in% c("rbfdot")),
     classif.ksvm.scale = p_dbl(0.01, 100, depends = classif.ksvm.kernel %in% c("polydot")),
-    classif.ksvm.C = p_dbl(1, 100),
-    threshold.thresholds = p_dbl(lower = 0, upper = 1)
-  ),
-  terminator = trm("stagnation"),
-  tuner = tnr("random_search")
+    classif.ksvm.C = p_dbl(1, 100)
+  )
 )
 ```
 
 ### Regresja logistyczna
 
 ```{r}
-logreg <- 
-logreg <- AutoTuner$new(
-  learner = lrn("classif.log_reg", predict_type = "prob", predict_sets = c("train", "test")) %>>% po("threshold"),
-  resampling = rsmp("cv", folds = 3),
-  measure = measure,
-  search_space = ps(
-    threshold.thresholds = p_dbl(lower = 0, upper = 1)
-  ),
-  terminator = trm("stagnation"),
-  tuner = tnr("random_search")
-)
+logreg <- tunethreshold(learner("classif.log_reg"), id = "logreg")
 ```
 
 ### Drzewo decyzyjne
 
 ```{r}
-rpart <- AutoTuner$new(
-  learner = lrn("classif.rpart", predict_type = "prob", predict_sets = c("train", "test")) %>>% po("threshold"),
-  resampling = rsmp("cv", folds = 3),
+rpart <- tunehyperparams(
+  learner = tunethreshold(learner("classif.rpart"), id = "tree"),
   measure = measure,
   search_space = ps(
     classif.rpart.cp = p_dbl(0, 1),
     classif.rpart.maxdepth = p_int(1, 30),
-    classif.rpart.minbucket = p_int(1, 100),
-    threshold.thresholds = p_dbl(lower = 0, upper = 1)
-  ),
-  terminator = trm("stagnation"),
-  tuner = tnr("random_search")
+    classif.rpart.minbucket = p_int(1, 100)
+  )
 )
 ```
 
 ### Las losowy
 
 ```{r}
-random_forest <- AutoTuner$new(
-  learner = lrn("classif.ranger", predict_type = "prob", predict_sets = c("train", "test")) %>>% po("threshold"),
-  resampling = rsmp("cv", folds = 3),
+random_forest <- tunehyperparams(
+  learner = tunethreshold(learner("classif.ranger"), id = "randomforest"),
   measure = measure,
   search_space = ps(
     classif.ranger.num.trees = p_int(10, 1000),
     classif.ranger.max.depth = p_int(1, 30),
     classif.ranger.mtry = p_int(1, 30),
-    classif.ranger.min.node.size = p_int(1, 10),
-    threshold.thresholds = p_dbl(lower = 0, upper = 1)
-  ),
-  terminator = trm("stagnation"),
-  tuner = tnr("random_search")
+    classif.ranger.min.node.size = p_int(1, 10)
+  )
 )
 ```
 
 ## Benchmark
+
+```{r}
+tasks <- list(data_minmax, data_zscore, data_robust)
+```
 
 ```{r}
 learners <- list(baseline, knn, svm, logreg, rpart, random_forest)
@@ -192,50 +197,87 @@ learners <- list(baseline, knn, svm, logreg, rpart, random_forest)
 
 ```{r}
 design <- benchmark_grid(
-  tasks = task,
+  tasks = tasks,
   learners = learners,
   resamplings = rsmp("cv", folds = 5)
 )
 design
 ```
 
-```{r attr.output='style="max-height: 500px;"'}
+```{r, warning=FALSE, attr.output='style="max-height: 500px;"'}
 bmr <- with_progress(benchmark(design))
 ```
 
+## Ewaluacja
+
+### Miara ewaluacyjna {.tabset}
+
 ```{r}
-autoplot(bmr, measure = measure)
+aggregate_benchmark(bmr, measure, descending = FALSE)
 ```
 
-```{r}
-autoplot(bmr, measure = measure, type = "roc")
+```{r, results='asis', echo = FALSE, warning = FALSE}
+plot_tasks_in_tabs(bmr, measure = measure)
 ```
 
+### ROC {.tabset}
 
-
-```{r}
-autoplot(bmr, measure = measure, type = "prc")
-```
-```{r}
-autoplot(bmr, measure = f1)
+```{r, results='asis', echo = FALSE, warning = FALSE}
+plot_tasks_in_tabs(bmr, measure = measure, type = "roc", autolimit = FALSE)
 ```
 
+### ROC AUC {.tabset}
 
-```{r}
-autoplot(bmr, measure = precision)
+```{r, warning = FALSE}
+aggregate_benchmark(bmr, msr("classif.auc"))
 ```
 
-
-```{r}
-autoplot(bmr, measure = roc_auc)
+```{r, results='asis', echo = FALSE, warning = FALSE}
+plot_tasks_in_tabs(bmr, measure = msr("classif.auc"))
 ```
 
+### PRC {.tabset}
 
-```{r}
-autoplot(bmr, measure = prauc)
+```{r, results='asis', echo = FALSE, warning = FALSE}
+plot_tasks_in_tabs(bmr, measure = measure, type = "prc", autolimit = FALSE)
 ```
 
+### PR AUC {.tabset}
+
+```{r, warning = FALSE}
+aggregate_benchmark(bmr, msr("classif.prauc"))
+```
+
+```{r, results='asis', echo = FALSE, warning = FALSE}
+plot_tasks_in_tabs(bmr, measure = msr("classif.prauc"))
+```
+
+### Precyzja {.tabset}
 
 ```{r}
-autoplot(bmr, measure = recall)
+aggregate_benchmark(bmr, msr("classif.precision"))
+```
+
+```{r, results='asis', echo = FALSE, warning = FALSE}
+plot_tasks_in_tabs(bmr, measure = msr("classif.precision"))
+```
+
+### Czułość {.tabset}
+
+```{r}
+aggregate_benchmark(bmr, msr("classif.recall"))
+```
+
+```{r, results='asis', echo = FALSE, warning = FALSE}
+plot_tasks_in_tabs(bmr, measure = msr("classif.recall"))
+```
+
+### F1 {.tabset}
+
+```{r}
+aggregate_benchmark(bmr, msr("classif.fbeta"))
+```
+
+```{r, results='asis', echo = FALSE, warning = FALSE}
+plot_tasks_in_tabs(bmr, measure = msr("classif.fbeta"))
 ```
