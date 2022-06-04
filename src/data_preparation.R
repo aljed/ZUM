@@ -30,11 +30,14 @@ build_class_task <- function(data, scaling_method, ...) {
 
 prepare_class_task <- function(task,
                                sampling,
-                               sampling_rate,
+                               undersampling_rate = NULL,
+                               oversampling_rate = NULL,
+                               smote_rate = NULL,
                                smote_nn = NULL,
                                selected_attributes = c(),
                                feature_selection = NULL,
-                               feature_selection_score = NULL) {
+                               feature_selection_score = NULL,
+                               add_weights = FALSE) {
   if (!is_empty(selected_attributes)) {
     task$select(selected_attributes)
   }
@@ -56,30 +59,41 @@ prepare_class_task <- function(task,
   }
 
 
-  if (is.null(sampling_rate)) {
-    stop("sampling_rate parameter must be filled")
-  }
-
-  if (sampling == "oversampling") {
+  if (sampling == "undersampling") {
+    if (is.null(smote_nn)) {
+      stop("undersampling_rate parameter must be filled if undersampling is choosen")
+    }
     po <- po("classbalancing",
-      id = "oversample", adjust = "major",
-      reference = "major", shuffle = FALSE, ratio = sampling_rate
+      id = "undersample", adjust = "major",
+      reference = "major", shuffle = FALSE, ratio = undersampling_rate
     )
-  } else if (sampling == "undersampling") {
+  } else if (sampling == "oversampling") {
+    if (is.null(smote_nn)) {
+      stop("oversampling_rate parameter must be filled if oversampling is choosen")
+    }
     po <- po("classbalancing",
-      id = "undersample", adjust = "minor",
-      reference = "minor", shuffle = FALSE, ratio = sampling_rate
+      id = "oversample", adjust = "minor",
+      reference = "minor", shuffle = FALSE, ratio = oversampling_rate
     )
   } else if (sampling == "SMOTE") {
     if (is.null(smote_nn)) {
       stop("smote_nn parameter must be filled if SMOTE sampling is choosen")
     }
-    po <- po("smote", dup_size = sampling_rate, K = smote_nn)
+    po <- po("smote", dup_size = smote_rate, K = smote_nn)
   } else {
     stop("Sampling method " + sampling + " unsupported.")
   }
-
-  po$train(list(task))[[1]]
+  
+  task = po$train(list(task))[[1]]
+  
+  if (add_weights) {
+    opb = po("classweights")
+    cost_m = cost_matrix(task$data(cols = "Class"))
+    opb$param_set$values$minor_weight = cost_m[1, 2]
+    task = opb$train(list(task))[[1L]]
+  }
+  
+  task
 }
 
 
@@ -98,7 +112,7 @@ cost_matrix <- function(data) {
   frequencies <- data %>%
     count(Class) %>%
     column_to_rownames("Class")
-  costs <- matrix(c(0, 1 / frequencies["fraud", "n"], 1 / frequencies["legit", "n"], 0), nrow = 2)
+  costs <- matrix(c(0, 1, frequencies["legit", "n"] / frequencies["fraud", "n"], 0), nrow = 2)
   dimnames(costs) <- list(predicted = c("fraud", "legit"), real = c("fraud", "legit"))
   costs
 }

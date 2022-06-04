@@ -30,7 +30,6 @@ plan(list("multisession", "sequential"))
 handlers("progress")
 ```
 
-
 ## Wczytanie danych
 
 ```{r}
@@ -41,12 +40,11 @@ data
 
 ```{r}
 # tymczasowo wybierzmy mniej danych żeby szybciej się liczyło
-data <- data %>%
-  group_by(Class) %>%
-  slice_sample(n = 100, replace = TRUE) %>%
-  ungroup()
+# data <- data %>%
+#   group_by(Class) %>%
+#   slice_sample(n = 100, replace = TRUE) %>%
+#   ungroup()
 ```
-
 
 ## Koszt
 
@@ -57,40 +55,45 @@ costs
 
 ## Przygotowanie danych
 
-```{r}
-data_minmax <- build_class_task(data, "minmax", id = "minmax")
-data_minmax
-```
-```{r}
-data_zscore <- build_class_task(data, "zscore", id = "zscore")
-data_zscore
-```
+``` {r}
+scaling_methods = c("minmax", "zscore", "robust")
+sampling_methods = c("undersampling", "oversampling", "SMOTE")
+feature_selection_methods = c("correlation")
+oversampling_rate = 100
+undersampling_rate = 0.01
+smote_nn = 1
+feature_selection_score = 1
+smote_rate = 1
 
-```{r}
-data_robust <- build_class_task(data, "robust", id = "robust")
-data_robust
+tasks <- c()
+
+for (scaling in scaling_methods) {
+  for (sampling in sampling_methods) {
+    for (feature_selection in feature_selection_methods) {
+      new_task <- build_class_task(data, scaling, sprintf("%s_%s_%s", scaling, sampling, feature_selection))
+      new_task <- prepare_class_task(new_task,
+                                     sampling,
+                                     undersampling_rate = undersampling_rate,
+                                     oversampling_rate = oversampling_rate,
+                                     smote_nn = smote_nn,
+                                     smote_rate = smote_rate,
+                                     feature_selection = feature_selection,
+                                     feature_selection_score = feature_selection_score,
+                                     add_weights = TRUE) 
+      append(tasks, new_task)
+      print("aaa")
+    }
+  }
+}
 ```
 
 ## Wizualizacja danych
 
-### MinMax {.tabset}
-
 ```{r, results='asis', echo = FALSE}
-plot_features_in_tabs(data_minmax)
+for (task in tasks) {
+  plot_features_in_tabs(task)
+}
 ```
-
-### Zscore {.tabset}
-
-```{r, results='asis', echo = FALSE}
-plot_features_in_tabs(data_zscore)
-```
-
-### Robust {.tabset}
-
-```{r, results='asis', echo = FALSE}
-plot_features_in_tabs(data_robust)
-```
-
 
 ## Miara ewaluacyjna
 
