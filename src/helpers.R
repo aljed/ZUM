@@ -50,7 +50,7 @@ plot_features_in_tabs <- function(task, level = "####") {
 }
 
 plot_tasks_in_tabs <- function(benchmark, measure, autolimit = TRUE, level = "####", ...) {
-  scores <- bmr$aggregate(measure)[[measure$id]]
+  scores <- bmr$score(measure)[[measure$id]]
   for (task in benchmark$tasks$task) {
     plot <- autoplot(
       benchmark$clone(deep = TRUE)$filter(task_hash = task$hash),

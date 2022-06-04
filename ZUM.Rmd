@@ -281,3 +281,9 @@ aggregate_benchmark(bmr, msr("classif.fbeta"))
 ```{r, results='asis', echo = FALSE, warning = FALSE}
 plot_tasks_in_tabs(bmr, measure = msr("classif.fbeta"))
 ```
+
+### Czas trenowania {.tabset}
+
+```{r, results='asis', echo = FALSE, warning = FALSE}
+plot_tasks_in_tabs(bmr, measure = msr("time_train"))
+```
