@@ -35,30 +35,11 @@ prepare_class_task <- function(task,
                                smote_rate = NULL,
                                smote_nn = NULL,
                                selected_attributes = c(),
-                               feature_selection = NULL,
-                               feature_selection_score = NULL,
                                add_weights = FALSE) {
   if (!is_empty(selected_attributes)) {
     task$select(selected_attributes)
   }
-
-  if (!is.null(feature_selection_score)) {
-    if (feature_selection == "correlation") {
-      filter <- flt("find_correlation")
-    } else if (feature_selection == "variable_importance") {
-      lrn <- lrn("classif.ranger", importance = "impurity")
-      filter <- flt("importance", learner = lrn)
-    } else {
-      print("Feature selection method unknown")
-    }
-
-    filter$calculate(task)
-    filtered <- as.data.table(filter)
-    filtered <- filtered[filtered$score > feature_selection_score, ]$feature
-    task$select(filtered)
-  }
-
-
+    
   if (sampling == "undersampling") {
     if (is.null(smote_nn)) {
       stop("undersampling_rate parameter must be filled if undersampling is choosen")
@@ -94,6 +75,26 @@ prepare_class_task <- function(task,
   }
   
   task
+}
+
+
+select_features <- function(task, feature_selection, feature_selection_score) {
+  if (feature_selection == "correlation") {
+    filter <- flt("find_correlation")
+  } else if (feature_selection == "variable_importance") {
+    lrn <- lrn("classif.ranger", importance = "impurity")
+    filter <- flt("importance", learner = lrn)
+  } else {
+    print("Feature selection method unknown")
+  }
+  
+  if (!is.null(feature_selection_score)) {
+    filter$calculate(task)
+    filtered <- as.data.table(filter)
+    filtered <- filtered[filtered$score > feature_selection_score, ]$feature
+  }
+  
+  filtered
 }
 
 

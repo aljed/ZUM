@@ -14,6 +14,7 @@ library("future")
 library("progressr")
 library("progress")
 library("data.table")
+library(r2r)
 ```
 
 ## Kod pomocniczy
@@ -52,34 +53,43 @@ data
 costs <- cost_matrix(data)
 costs
 ```
+## Wybór atrybutów
+
+```{r}
+feature_selection_methods = c("correlation", "variable_importance")
+feature_selection_score = 1
+
+helper_task <- build_class_task(data, "minmax")
+features <- hashmap()
+features[['variable_importance']] <- select_features(helper_task, "variable_importance", feature_selection_score)
+features[['correlation']] <- select_features(helper_task, "correlation", feature_selection_score)
+```
+
 
 ## Przygotowanie danych
 
 ``` {r}
 scaling_methods = c("minmax", "zscore", "robust")
 sampling_methods = c("undersampling", "oversampling", "SMOTE")
-feature_selection_methods = c("correlation")
 oversampling_rate = 100
 undersampling_rate = 0.01
 smote_nn = 1
-feature_selection_score = 1
 smote_rate = 1
 
 tasks <- c()
 
-for (scaling in scaling_methods) {
+for (feature_selection_method in feature_selection_methods) {
   for (sampling in sampling_methods) {
-    for (feature_selection in feature_selection_methods) {
-      new_task <- build_class_task(data, scaling, sprintf("%s_%s_%s", scaling, sampling, feature_selection))
+    for (scaling in scaling_methods) {
+      new_task <- build_class_task(data, scaling, id=sprintf("%s_%s_%s", scaling, sampling, feature_selection))
       new_task <- prepare_class_task(new_task,
                                      sampling,
                                      undersampling_rate = undersampling_rate,
                                      oversampling_rate = oversampling_rate,
                                      smote_nn = smote_nn,
                                      smote_rate = smote_rate,
-                                     feature_selection = feature_selection,
-                                     feature_selection_score = feature_selection_score,
-                                     add_weights = TRUE) 
+                                     selected_attributes = features[[feature_selection_method]],
+                                     add_weights = TRUE)
       tasks <- append(tasks, new_task)
     }
   }
