@@ -150,12 +150,6 @@ svm <- tunehyperparams(
 )
 ```
 
-### Regresja logistyczna
-
-```{r}
-logreg <- tunethreshold(learner("classif.log_reg"), id = "logreg")
-```
-
 ### Drzewo decyzyjne
 
 ```{r}
@@ -192,7 +186,7 @@ tasks <- list(data_minmax, data_zscore, data_robust)
 ```
 
 ```{r}
-learners <- list(baseline, knn, svm, logreg, rpart, random_forest)
+learners <- list(baseline, knn, svm, rpart, random_forest)
 ```
 
 ```{r}
