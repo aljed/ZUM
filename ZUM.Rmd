@@ -199,7 +199,7 @@ learners <- list(baseline, knn, svm, logreg, rpart, random_forest)
 design <- benchmark_grid(
   tasks = tasks,
   learners = learners,
-  resamplings = rsmp("cv", folds = 5)
+  resamplings = rsmp("cv", folds = 3)
 )
 design
 ```
