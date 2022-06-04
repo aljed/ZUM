@@ -23,7 +23,9 @@ build_class_task <- function(data, scaling_method, ...) {
     print("Scaling method " + scaling_method + " unsupported. Data will remain unscaled.")
   }
 
-  as_task_classif(data, target = "Class", ...)
+  task <- as_task_classif(data, target = "Class", ...)
+  task$col_roles$stratum = "Class"
+  task
 }
 
 prepare_class_task <- function(task,
