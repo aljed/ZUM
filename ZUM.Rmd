@@ -81,7 +81,6 @@ for (scaling in scaling_methods) {
                                      feature_selection_score = feature_selection_score,
                                      add_weights = TRUE) 
       append(tasks, new_task)
-      print("aaa")
     }
   }
 }
@@ -150,10 +149,6 @@ random_forest <- tunethreshold(learner("classif.ranger"), id = "randomforest")
 ```
 
 ## Benchmark
-
-```{r}
-tasks <- list(data_minmax, data_zscore, data_robust)
-```
 
 ```{r}
 learners <- list(baseline, knn, svm, rpart, random_forest)
