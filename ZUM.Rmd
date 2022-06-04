@@ -125,58 +125,25 @@ baseline <- learner("classif.featureless", method = "sample", id = "featureless"
 ### K najbliższych sąsiadów
 
 ```{r}
-knn <- tunehyperparams(
-  learner = tunethreshold(learner("classif.kknn"), id = "knn"),
-  measure = measure,
-  search_space = ps(
-    classif.kknn.k = p_int(1, 30),
-    classif.kknn.kernel = p_fct(c("rectangular", "epanechnikov", "inv", "gaussian"))
-  )
-)
+knn <- tunethreshold(learner("classif.kknn"), id = "knn")
 ```
 
 ### Maszyna wektorów nośnych
 
 ```{r}
-svm <- tunehyperparams(
-  learner = tunethreshold(learner("classif.ksvm", type = "C-svc"), id = "svm"),
-  measure = measure,
-  search_space = ps(
-    classif.ksvm.kernel = p_fct(c("rbfdot", "polydot", "vanilladot")),
-    classif.ksvm.sigma = p_dbl(0.01, 100, depends = classif.ksvm.kernel %in% c("rbfdot")),
-    classif.ksvm.scale = p_dbl(0.01, 100, depends = classif.ksvm.kernel %in% c("polydot")),
-    classif.ksvm.C = p_dbl(1, 100)
-  )
-)
+svm <- tunethreshold(learner("classif.ksvm", type = "C-svc"), id = "svm")
 ```
 
 ### Drzewo decyzyjne
 
 ```{r}
-rpart <- tunehyperparams(
-  learner = tunethreshold(learner("classif.rpart"), id = "tree"),
-  measure = measure,
-  search_space = ps(
-    classif.rpart.cp = p_dbl(0, 1),
-    classif.rpart.maxdepth = p_int(1, 30),
-    classif.rpart.minbucket = p_int(1, 100)
-  )
-)
+rpart <- tunethreshold(learner("classif.rpart"), id = "tree")
 ```
 
 ### Las losowy
 
 ```{r}
-random_forest <- tunehyperparams(
-  learner = tunethreshold(learner("classif.ranger"), id = "randomforest"),
-  measure = measure,
-  search_space = ps(
-    classif.ranger.num.trees = p_int(10, 1000),
-    classif.ranger.max.depth = p_int(1, 30),
-    classif.ranger.mtry = p_int(1, 30),
-    classif.ranger.min.node.size = p_int(1, 10)
-  )
-)
+random_forest <- tunethreshold(learner("classif.ranger"), id = "randomforest")
 ```
 
 ## Benchmark
