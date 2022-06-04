@@ -65,7 +65,7 @@ prepare_class_task <- function(task,
       id = "oversample", adjust = "major",
       reference = "major", shuffle = FALSE, ratio = sampling_rate
     )
-  } else if (sampling == "downsampling") {
+  } else if (sampling == "undersampling") {
     po <- po("classbalancing",
       id = "undersample", adjust = "minor",
       reference = "minor", shuffle = FALSE, ratio = sampling_rate
