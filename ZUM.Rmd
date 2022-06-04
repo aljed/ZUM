@@ -80,7 +80,7 @@ for (scaling in scaling_methods) {
                                      feature_selection = feature_selection,
                                      feature_selection_score = feature_selection_score,
                                      add_weights = TRUE) 
-      append(tasks, new_task)
+      tasks <- append(tasks, new_task)
     }
   }
 }
