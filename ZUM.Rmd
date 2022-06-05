@@ -84,8 +84,7 @@ for (feature_selection_method in feature_selection_methods) {
                                      oversampling_rate = oversampling_rate,
                                      smote_nn = smote_nn,
                                      smote_rate = smote_rate,
-                                     selected_attributes = features,
-                                     add_weights = TRUE)
+                                     selected_attributes = features)
       tasks <- append(tasks, new_task)
     }
   }
@@ -176,8 +175,10 @@ bmr <- with_progress(benchmark(design))
 
 ### Miara ewaluacyjna {.tabset}
 
-```{r}
-aggregate_benchmark(bmr, measure, descending = FALSE)
+```{r, warning = FALSE}
+aggregated <- aggregate_benchmark(bmr, measure, descending = FALSE)
+source("src/helpers.R")
+plot_box(aggregated)
 ```
 
 ```{r, results='asis', echo = FALSE, warning = FALSE}
@@ -193,7 +194,8 @@ plot_tasks_in_tabs(bmr, measure = measure, type = "roc", autolimit = FALSE)
 ### ROC AUC {.tabset}
 
 ```{r, warning = FALSE}
-aggregate_benchmark(bmr, msr("classif.auc"))
+aggregated_auc <- aggregate_benchmark(bmr, msr("classif.auc"))
+plot_box(aggregated_auc, 'classif.auc')
 ```
 
 ```{r, results='asis', echo = FALSE, warning = FALSE}
@@ -209,7 +211,8 @@ plot_tasks_in_tabs(bmr, measure = measure, type = "prc", autolimit = FALSE)
 ### PR AUC {.tabset}
 
 ```{r, warning = FALSE}
-aggregate_benchmark(bmr, msr("classif.prauc"))
+aggregated_prauc <- aggregate_benchmark(bmr, msr("classif.prauc"))
+plot_box(aggregated_prauc, 'classif.prauc')
 ```
 
 ```{r, results='asis', echo = FALSE, warning = FALSE}
@@ -219,7 +222,8 @@ plot_tasks_in_tabs(bmr, measure = msr("classif.prauc"))
 ### Precyzja {.tabset}
 
 ```{r}
-aggregate_benchmark(bmr, msr("classif.precision"))
+aggregated_precision <- aggregate_benchmark(bmr, msr("classif.precision"))
+plot_box(aggregated_precision, 'classif.precision')
 ```
 
 ```{r, results='asis', echo = FALSE, warning = FALSE}
@@ -229,7 +233,8 @@ plot_tasks_in_tabs(bmr, measure = msr("classif.precision"))
 ### Czułość {.tabset}
 
 ```{r}
-aggregate_benchmark(bmr, msr("classif.recall"))
+aggregated_recall <- aggregate_benchmark(bmr, msr("classif.recall"))
+plot_box(aggregated_recall, "classif.recall")
 ```
 
 ```{r, results='asis', echo = FALSE, warning = FALSE}
@@ -239,7 +244,8 @@ plot_tasks_in_tabs(bmr, measure = msr("classif.recall"))
 ### F1 {.tabset}
 
 ```{r}
-aggregate_benchmark(bmr, msr("classif.fbeta"))
+aggregated_fbeta <- aggregate_benchmark(bmr, msr("classif.fbeta"))
+plot_box(aggregated_fbeta, "classif.fbeta")
 ```
 
 ```{r, results='asis', echo = FALSE, warning = FALSE}

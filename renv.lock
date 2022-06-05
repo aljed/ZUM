@@ -17,6 +17,14 @@
       "Hash": "dcd1743af4336156873e3ce3c950b8b9",
       "Requirements": []
     },
+    "FNN": {
+      "Package": "FNN",
+      "Version": "1.1.3.1",
+      "Source": "Repository",
+      "Repository": "CRAN",
+      "Hash": "a774898dbc05ccf03ed4ca93fa7a71f4",
+      "Requirements": []
+    },
     "GGally": {
       "Package": "GGally",
       "Version": "2.1.2",
@@ -462,6 +470,16 @@
         "tidyselect",
         "vctrs",
         "withr"
+      ]
+    },
+    "dbscan": {
+      "Package": "dbscan",
+      "Version": "1.1-10",
+      "Source": "Repository",
+      "Repository": "CRAN",
+      "Hash": "a41eed892d408fda44afe96f7df2885e",
+      "Requirements": [
+        "Rcpp"
       ]
     },
     "dictionar6": {
@@ -1121,14 +1139,14 @@
       "Package": "mlr3extralearners",
       "Version": "0.5.37",
       "Source": "GitHub",
-      "Remotes": "binderh/CoxBoost, mlr-org/mlr3proba, RaphaelS1/survivalmodels",
       "RemoteType": "github",
+      "Remotes": "binderh/CoxBoost, mlr-org/mlr3proba, RaphaelS1/survivalmodels",
       "RemoteHost": "api.github.com",
       "RemoteRepo": "mlr3extralearners",
       "RemoteUsername": "mlr-org",
       "RemoteRef": "HEAD",
       "RemoteSha": "f06f209796c7cc319d6ef473918d5feab8e2859e",
-      "Hash": "bb825742b618deae275bf5904d43d793",
+      "Hash": "884a3703916eaff7e2f3d88b942b3804",
       "Requirements": [
         "R6",
         "checkmate",
@@ -1406,6 +1424,14 @@
         "askpass"
       ]
     },
+    "packrat": {
+      "Package": "packrat",
+      "Version": "0.8.0",
+      "Source": "Repository",
+      "Repository": "CRAN",
+      "Hash": "15517f0f57129e93fba4cf40dcf88c2d",
+      "Requirements": []
+    },
     "palmerpenguins": {
       "Package": "palmerpenguins",
       "Version": "0.1.0",
@@ -1576,6 +1602,17 @@
         "rlang"
       ]
     },
+    "r2r": {
+      "Package": "r2r",
+      "Version": "0.1.1",
+      "Source": "Repository",
+      "Repository": "CRAN",
+      "Hash": "55571f80cde0c087300f79ebcc834958",
+      "Requirements": [
+        "digest",
+        "rlang"
+      ]
+    },
     "ranger": {
       "Package": "ranger",
       "Version": "0.13.1",
@@ -1735,6 +1772,22 @@
       "Hash": "1de7ab598047a87bba48434ba35d497d",
       "Requirements": []
     },
+    "rsconnect": {
+      "Package": "rsconnect",
+      "Version": "0.8.26",
+      "Source": "Repository",
+      "Repository": "CRAN",
+      "Hash": "c274aa0076b1892bf702de3257e67275",
+      "Requirements": [
+        "curl",
+        "digest",
+        "jsonlite",
+        "openssl",
+        "packrat",
+        "rstudioapi",
+        "yaml"
+      ]
+    },
     "rstudioapi": {
       "Package": "rstudioapi",
       "Version": "0.13",
@@ -1841,6 +1894,18 @@
         "sourcetools",
         "withr",
         "xtable"
+      ]
+    },
+    "smotefamily": {
+      "Package": "smotefamily",
+      "Version": "1.3.1",
+      "Source": "Repository",
+      "Repository": "CRAN",
+      "Hash": "8167cd4e317ed8a790d27adbd0c3626d",
+      "Requirements": [
+        "FNN",
+        "dbscan",
+        "igraph"
       ]
     },
     "sourcetools": {

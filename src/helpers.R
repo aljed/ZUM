@@ -1,5 +1,6 @@
 library("mlr3verse")
 library("ggplot2")
+library("scales")
 
 learner <- function(name, predict_type = "prob", predict_sets = c("train", "test"), ...) {
   lrn(name, predict_type = predict_type, predict_sets = predict_sets, ...)
@@ -64,7 +65,39 @@ plot_tasks_in_tabs <- function(benchmark, measure, autolimit = TRUE, level = "##
   }
 }
 
+
 aggregate_benchmark <- function(benchmark, measure, descending = TRUE) {
   scores <- bmr$aggregate(measure)
   if (descending) scores[order(-scores[[measure$id]])] else scores[order(scores[[measure$id]])]
+}
+
+plot_box <- function(aggregated, metric='classif.costs' ){
+  
+  learners <- c('randomforest', 'knn', 'svm', 'tree')
+  shorten_name <- function(name){
+    name <- str_replace(name, "variable_importance", "vi")
+    name <- str_replace(name, "_none_fs", "")
+    name <- str_replace(name, "_oversampling", "over_sam")
+    name <- str_replace(name, "_SMOTE", "SMOTE")
+    name <- str_replace(name, "_undersampling", "under_sam")
+    name
+  }
+  
+  selected <- select(aggregated, learner_id, task_id, m=metric)
+  
+  for (l in learners){
+    s <- filter(selected, learner_id==l)
+    s <- select(s, task_id, m)
+    s <- mutate(s, task_id, normalization=str_extract(task_id, "zscore|minmax|robust"), task=shorten_name(str_extract(task_id, "_.*$")))
+    if(metric!='classif.costs') 
+      print(ggplot(s, aes(fill=normalization, y=m, x=task)) 
+            + geom_bar(position="dodge", stat="identity") + ggtitle(l)
+            + scale_y_continuous(limits=c(0.95,1),oob = rescale_none) + ylab(metric)
+      )
+    else 
+      print(ggplot(s, aes(fill=normalization, y=m, x=task)) 
+            + geom_bar(position="dodge", stat="identity") + ggtitle(l) + ylab(metric)
+      )
+    
+  }
 }
