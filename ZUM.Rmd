@@ -50,7 +50,7 @@ costs
 feature_selection_methods = c("none_fs", "variable_importance")
 feature_selection_score = 20
 
-# helper_task <- build_class_task(data, "minmax")
+helper_task <- build_class_task(data, "minmax")
 # selected_features <- select_features(helper_task, "variable_importance", feature_selection_score)
 selected_features <- c("V17", "V12", "V14", "V10", "V11", "V16", "V9",  "V18", "V4", "V7")
 ```
@@ -95,10 +95,7 @@ for (feature_selection_method in feature_selection_methods) {
 ## Wizualizacja danych
 
 ```{r, results='asis', echo = FALSE}
-for (task in tasks) {
-  if (grepl("none_fs", task$id, fixed = TRUE))
-    plot_features_in_tabs(task)
-}
+plot_features_in_tabs(helper_task)
 ```
 
 ## Miara ewaluacyjna
