@@ -1,0 +1,34 @@
+---
+title: "Wizualizacja danych"
+output:
+  html_document:
+    df_print: paged
+---
+
+## Pakiety
+
+```{r, message = FALSE}
+library("tidyverse")
+library("mlr3verse")
+```
+
+## Kod pomocniczy
+
+```{r, message = FALSE}
+source("src/data_preparation.R")
+source("src/helpers.R")
+```
+
+## Wczytanie danych
+
+```{r}
+data <- read_csv("data/creditcard.csv", col_types = c("Class" = "factor"))
+data$Class <- factor(data$Class, labels = c("legit", "fraud"))
+data
+```
+
+## Wizualizacja danych {.tabset}
+
+```{r, results='asis', echo = FALSE}
+plot_features_in_tabs(build_class_task(data))
+```
