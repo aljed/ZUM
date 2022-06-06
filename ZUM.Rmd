@@ -49,52 +49,13 @@ costs
 ```{r}
 feature_selection_methods = c("none_fs", "variable_importance")
 feature_selection_score = 20
-
-helper_task <- build_class_task(data, "minmax")
-# selected_features <- select_features(helper_task, "variable_importance", feature_selection_score)
-selected_features <- c("V17", "V12", "V14", "V10", "V11", "V16", "V9",  "V18", "V4", "V7")
-```
-
-
-## Przygotowanie danych
-
-``` {r}
-scaling_methods = c("minmax", "zscore", "robust")
-sampling_methods = c("undersampling", "oversampling", "SMOTE")
-oversampling_rate = 100
-undersampling_rate = 0.01
-smote_nn = 5
-smote_rate = 100
-
-tasks <- c()
-
-for (feature_selection_method in feature_selection_methods) {
-  
-  if (feature_selection_method != "nonefs")
-    features <- selected_features
-  else
-    features <- c()
-  
-  for (sampling in sampling_methods) {
-    for (scaling in scaling_methods) {
-      new_task <- build_class_task(data, scaling, id=sprintf("%s_%s_%s", scaling, sampling, feature_selection_method))
-      new_task <- prepare_class_task(new_task,
-                                     sampling,
-                                     undersampling_rate = undersampling_rate,
-                                     oversampling_rate = oversampling_rate,
-                                     smote_nn = smote_nn,
-                                     smote_rate = smote_rate,
-                                     selected_attributes = features)
-      tasks <- append(tasks, new_task)
-    }
-  }
-}
 ```
 
 ## Wizualizacja danych
 
 ```{r, results='asis', echo = FALSE}
-plot_features_in_tabs(helper_task)
+task <- build_class_task(data)
+plot_features_in_tabs(task)
 ```
 
 ## Miara ewaluacyjna
@@ -157,16 +118,61 @@ random_forest <- tunethreshold(learner("classif.ranger"), id = "randomforest")
 learners <- list(baseline, knn, svm, rpart, random_forest)
 ```
 
+## Learners
+
+``` {r}
+scaling_methods = c("minmax", "zscore", "robust")
+sampling_methods = c("undersampling", "oversampling", "SMOTE")
+oversampling_rate = 100
+undersampling_rate = 0.01
+smote_nn = 5
+smote_rate = 100
+
+tasks <- c(task)
+extended_learners <- c()
+
+for (learner in learners) {
+  for (scaling in scaling_methods){
+    for(sampling in sampling_methods) {
+      sampling_filter <- sampling_po(sampling, undersampling_rate, oversampling_rate, smote_rate, smote_nn)
+      scaling_filter <- scaling_po(scaling)
+      
+      new_learner <- as_learner(
+          scaling_filter %>>% 
+          po("filter", filter = flt("importance", learner=lrn("classif.ranger", importance = "impurity")), filter.cutoff = 20) %>>%
+          sampling_filter %>>% 
+          learner)
+      if(scaling == "robust")
+        new_learner$id <- sprintf("robust%s", new_learner$id)
+      extended_learners <- append(extended_learners, new_learner)
+      
+      new_learner <- as_learner(
+          scaling_filter %>>% 
+          sampling_filter %>>% 
+          learner)
+      if(scaling == "robust")
+        new_learner$id <- sprintf("robust%s", new_learner$id)
+
+      extended_learners <- append(extended_learners, new_learner)
+    }
+  }
+}
+
+ for(l in extended_learners){
+  print(l$id)
+}
+```
+
 ```{r}
 design <- benchmark_grid(
   tasks = tasks,
-  learners = learners,
+  learners = extended_learners,
   resamplings = rsmp("cv", folds = 3)
 )
 design
 ```
 
-```{r, warning=FALSE, attr.output='style="max-height: 500px;"'}
+```{r, warning=FALSE, attr.output='style="max-height: 500px;"'} 
 options(future.globals.onReference = "warning")
 bmr <- with_progress(benchmark(design))
 ```
