@@ -1,5 +1,5 @@
 ---
-title: "ZUM"
+title: "Uczenie"
 output:
   html_document:
     df_print: paged
@@ -35,7 +35,6 @@ handlers("progress")
 ```{r}
 data <- read_csv("data/creditcard.csv", col_types = c("Class" = "factor"))
 data$Class <- factor(data$Class, labels = c("legit", "fraud"))
-data
 ```
 
 ## Koszt
@@ -43,19 +42,6 @@ data
 ```{r}
 costs <- cost_matrix(data)
 costs
-```
-## Wybór atrybutów
-
-```{r}
-feature_selection_methods = c("none_fs", "variable_importance")
-feature_selection_score = 20
-```
-
-## Wizualizacja danych
-
-```{r, results='asis', echo = FALSE}
-task <- build_class_task(data)
-plot_features_in_tabs(task)
 ```
 
 ## Miara ewaluacyjna
@@ -87,7 +73,6 @@ measure
 baseline <- learner("classif.featureless", method = "sample", id = "featureless")
 ```
 
-
 ### K najbliższych sąsiadów
 
 ```{r}
@@ -114,59 +99,41 @@ random_forest <- tunethreshold(learner("classif.ranger"), id = "randomforest")
 
 ## Benchmark
 
-```{r}
-learners <- list(baseline, knn, svm, rpart, random_forest)
-```
-
-## Learners
-
 ``` {r}
-scaling_methods = c("minmax", "zscore", "robust")
-sampling_methods = c("undersampling", "oversampling", "SMOTE")
-oversampling_rate = 100
-undersampling_rate = 0.01
-smote_nn = 5
-smote_rate = 100
+scaling_methods <- c("minmax", "zscore", "robust")
+sampling_methods <- c("undersampling", "oversampling", "SMOTE")
+oversampling_rate <- 100
+undersampling_rate <- 0.01
+smote_nn <- 5
+smote_rate <- 100
 
-tasks <- c(task)
-extended_learners <- c()
+learners <- c()
 
-for (learner in learners) {
-  for (scaling in scaling_methods){
-    for(sampling in sampling_methods) {
-      sampling_filter <- sampling_po(sampling, undersampling_rate, oversampling_rate, smote_rate, smote_nn)
+for (learner in list(baseline, knn, svm, rpart, random_forest)) {
+  learners <- append(learners, learner)
+
+  for (scaling in scaling_methods) {
+    for (sampling in sampling_methods) {
       scaling_filter <- scaling_po(scaling)
-      
-      new_learner <- as_learner(
-          scaling_filter %>>% 
-          po("filter", filter = flt("importance", learner=lrn("classif.ranger", importance = "impurity")), filter.cutoff = 20) %>>%
-          sampling_filter %>>% 
-          learner)
-      if(scaling == "robust")
-        new_learner$id <- sprintf("robust%s", new_learner$id)
-      extended_learners <- append(extended_learners, new_learner)
-      
-      new_learner <- as_learner(
-          scaling_filter %>>% 
-          sampling_filter %>>% 
-          learner)
-      if(scaling == "robust")
-        new_learner$id <- sprintf("robust%s", new_learner$id)
+      sampling_filter <- sampling_po(sampling, undersampling_rate, oversampling_rate, smote_rate, smote_nn)
 
-      extended_learners <- append(extended_learners, new_learner)
+      new_learner <- as_learner(
+        scaling_filter %>>%
+          po("filter", filter = flt("importance", learner = lrn("classif.ranger", importance = "impurity")), filter.frac = 0.5) %>>%
+          sampling_filter %>>%
+          learner
+      )
+
+      learners <- append(learners, new_learner)
     }
   }
-}
-
- for(l in extended_learners){
-  print(l$id)
 }
 ```
 
 ```{r}
 design <- benchmark_grid(
-  tasks = tasks,
-  learners = extended_learners,
+  tasks = build_class_task(data),
+  learners = learners,
   resamplings = rsmp("cv", folds = 3)
 )
 design
@@ -182,84 +149,77 @@ bmr <- with_progress(benchmark(design))
 ### Miara ewaluacyjna {.tabset}
 
 ```{r, warning = FALSE}
-aggregated <- aggregate_benchmark(bmr, measure, descending = FALSE)
-source("src/helpers.R")
-plot_box(aggregated)
+aggregate_benchmark(bmr, measure, descending = FALSE)
 ```
 
 ```{r, results='asis', echo = FALSE, warning = FALSE}
-plot_tasks_in_tabs(bmr, measure = measure)
+plot_modifiers_in_tabs(bmr, measure = measure)
 ```
 
 ### ROC {.tabset}
 
 ```{r, results='asis', echo = FALSE, warning = FALSE}
-plot_tasks_in_tabs(bmr, measure = measure, type = "roc", autolimit = FALSE)
+plot_modifiers_in_tabs(bmr, measure = measure, type = "roc", autolimit = FALSE)
 ```
 
 ### ROC AUC {.tabset}
 
 ```{r, warning = FALSE}
-aggregated_auc <- aggregate_benchmark(bmr, msr("classif.auc"))
-plot_box(aggregated_auc, 'classif.auc')
+aggregate_benchmark(bmr, msr("classif.auc"))
 ```
 
 ```{r, results='asis', echo = FALSE, warning = FALSE}
-plot_tasks_in_tabs(bmr, measure = msr("classif.auc"))
+plot_modifiers_in_tabs(bmr, measure = msr("classif.auc"))
 ```
 
 ### PRC {.tabset}
 
 ```{r, results='asis', echo = FALSE, warning = FALSE}
-plot_tasks_in_tabs(bmr, measure = measure, type = "prc", autolimit = FALSE)
+plot_modifiers_in_tabs(bmr, measure = measure, type = "prc", autolimit = FALSE)
 ```
 
 ### PR AUC {.tabset}
 
 ```{r, warning = FALSE}
-aggregated_prauc <- aggregate_benchmark(bmr, msr("classif.prauc"))
-plot_box(aggregated_prauc, 'classif.prauc')
+aggregate_benchmark(bmr, msr("classif.prauc"))
 ```
 
 ```{r, results='asis', echo = FALSE, warning = FALSE}
-plot_tasks_in_tabs(bmr, measure = msr("classif.prauc"))
+plot_modifiers_in_tabs(bmr, measure = msr("classif.prauc"))
 ```
 
 ### Precyzja {.tabset}
 
 ```{r}
-aggregated_precision <- aggregate_benchmark(bmr, msr("classif.precision"))
-plot_box(aggregated_precision, 'classif.precision')
+aggregate_benchmark(bmr, msr("classif.precision"))
 ```
 
 ```{r, results='asis', echo = FALSE, warning = FALSE}
-plot_tasks_in_tabs(bmr, measure = msr("classif.precision"))
+plot_modifiers_in_tabs(bmr, measure = msr("classif.precision"))
 ```
 
 ### Czułość {.tabset}
 
 ```{r}
-aggregated_recall <- aggregate_benchmark(bmr, msr("classif.recall"))
-plot_box(aggregated_recall, "classif.recall")
+aggregate_benchmark(bmr, msr("classif.recall"))
 ```
 
 ```{r, results='asis', echo = FALSE, warning = FALSE}
-plot_tasks_in_tabs(bmr, measure = msr("classif.recall"))
+plot_modifiers_in_tabs(bmr, measure = msr("classif.recall"))
 ```
 
 ### F1 {.tabset}
 
 ```{r}
-aggregated_fbeta <- aggregate_benchmark(bmr, msr("classif.fbeta"))
-plot_box(aggregated_fbeta, "classif.fbeta")
+aggregate_benchmark(bmr, msr("classif.fbeta"))
 ```
 
 ```{r, results='asis', echo = FALSE, warning = FALSE}
-plot_tasks_in_tabs(bmr, measure = msr("classif.fbeta"))
+plot_modifiers_in_tabs(bmr, measure = msr("classif.fbeta"))
 ```
 
 ### Czas trenowania {.tabset}
 
 ```{r, results='asis', echo = FALSE, warning = FALSE}
-plot_tasks_in_tabs(bmr, measure = msr("time_train"))
+plot_modifiers_in_tabs(bmr, measure = msr("time_train"))
 ```
